@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { DataGrid } from '@mui/x-data-grid';
+import CurrencyTextField from '@unicef/material-ui-currency-textfield';
 import {
     Box,
     Button,
@@ -14,22 +15,58 @@ import {
     Create
 } from '@mui/icons-material';
 
-import Service from '../services/category.service';
+import Service from '../services/bank-account.service.js';
 
-const CategoryCrud = () => {
+const BankAccountCrud = () => {
     const [rowCountState, setRowCountState] = useState(0);
     const [page, setPage] = useState(0);
     const [loading, setLoading] = useState(false);
     const [refreshData, setRefreshData] = useState(false);
 
-    const [categories, setCategories] = useState([]);
+    const [bankAccounts, setBankAccounts] = useState([]);
     const [viewForm, setViewForm] = useState(false);
     const [editId, setEditId] = useState(null);
     const [descriptionField, setDescriptionField] = useState('');
+    const [balanceField, setBalanceField] = useState('');
 
     useEffect(() => {
-        retrieveCategories(page);
+        retrieveBankAccounts(page);
     }, [page, refreshData]);
+
+    const formatCurrency = (amount) => {
+        let amtStr = amount.toString();
+        let formattedString;
+
+        let amtStrParts = amtStr.split('.');
+
+        const integerPart = amtStrParts[0];
+        let integerPartFormattedReversed = '';
+        for (let c = 0, i = integerPart.length - 1; i >= 0 ; i--, c++) { 
+            if (c < 2) {
+                integerPartFormattedReversed += integerPart[i];
+            } else {
+                integerPartFormattedReversed += i - 1 >= 0 ?
+                    integerPart[i] + '.' : integerPart[i];
+                c = -1;                
+            }
+        }
+
+        let integerPartFormatted = '';
+        for (let i = integerPartFormattedReversed.length - 1; i >= 0 ; i--) { 
+            integerPartFormatted += integerPartFormattedReversed[i];
+        }
+
+        if (amtStrParts.length === 1) {
+            formattedString = `${integerPartFormatted},00`;
+        } else {
+            const decimalDigits = amtStrParts[1].length === 1 ? 
+                '0' + amtStrParts[1] : amtStrParts[1];
+
+            formattedString = `${integerPartFormatted},${decimalDigits}`;
+        } 
+
+        return `R$ ${formattedString}`;
+    }
 
     const renderCells = (params) => {
         return (
@@ -39,7 +76,7 @@ const CategoryCrud = () => {
                 alignItems='center'
             >
                 <Grid item xs={9}>
-                    {params.row.description}
+                    {formatCurrency(params.row.balance)}
                 </Grid >
 
                 <Grid item xs={3}>
@@ -48,7 +85,7 @@ const CategoryCrud = () => {
                             aria-label='Editar'
                             color='primary'
                             onClick={() => {
-                                editCategory(params.row);
+                                editBankAccount(params.row);
                             }}
                         >
                             <Create />
@@ -60,7 +97,7 @@ const CategoryCrud = () => {
                             aria-label='Remover'
                             color='error'
                             onClick={() => {
-                                removeCategory(params.row.id);
+                                removeBankAccount(params.row.id);
                             }}
                         >
                             <Delete />
@@ -71,27 +108,27 @@ const CategoryCrud = () => {
         )
     }
 
-    const retrieveCategories = (page) => {
+    const retrieveBankAccounts = (page) => {
         Service.get(page).then(response => {
-            const categs = response.data.categories;
+            const accs = response.data.bankAccounts;
             const count = response.data.count;
 
             if (count) {
                 setRowCountState(count);
             }
 
-            categs.forEach(el => {
+            accs.forEach(el => {
                 el['id'] = el['_id'];
             });
 
-            setCategories(categs);
+            setBankAccounts(accs);
             setLoading(false);
         }).catch(err => {
             console.log(err);
         });
     }
 
-    const removeCategory = (id) => {
+    const removeBankAccount = (id) => {
         Service.delete(id).then(() => {
             setRefreshData(!refreshData);
         }).catch(err => {
@@ -99,25 +136,26 @@ const CategoryCrud = () => {
         })
     }
 
-    const editCategory = (category) => {
-        setEditId(category.id);
-        showForm(category.description);
+    const editBankAccount = (bankAccount) => {
+        setEditId(bankAccount.id);
+        showForm(bankAccount);
     }
 
     const save = () => {
-        const categ = {
-            description: descriptionField
+        const account = {
+            description: descriptionField,
+            balance: balanceField
         }
 
         if (editId) {
-            Service.update(editId, categ).then(response => {
+            Service.update(editId, account).then(response => {
                 setRefreshData(!refreshData);
                 closeForm();
             }).catch(err => {
                 console.log(err);
             });
         } else {
-            Service.create(categ).then(response => {
+            Service.create(account).then(response => {
                 setRefreshData(!refreshData);
                 closeForm();
             }).catch(err => {
@@ -129,18 +167,25 @@ const CategoryCrud = () => {
     const closeForm = () => {
         setEditId(null);
         setDescriptionField('');
+        setBalanceField('');
         setViewForm(false);
     }
 
-    const showForm = (description) => {
+    const showForm = (account) => {
         setViewForm(true);
-        setDescriptionField(description || '');
+        setDescriptionField(account?.description || '');
+        setBalanceField(account?.balance || '');
     }
 
     const columns = [
         {
             field: 'description',
             headerName: 'Descrição',
+            flex: 1,
+        },
+        {
+            field: 'balance',
+            headerName: 'Saldo',
             flex: 1,
             renderCell: renderCells
         }
@@ -152,7 +197,7 @@ const CategoryCrud = () => {
                 <Box sx={{ p: 5 }}>
                     <DataGrid
                         autoHeight
-                        rows={categories}
+                        rows={bankAccounts}
                         columns={columns}
                         pagination
                         pageSize={5}
@@ -170,7 +215,7 @@ const CategoryCrud = () => {
                             sx={{ mt: 2 }}
                             onClick={() => showForm()}
                         >
-                            Adicionar categoria
+                            Adicionar Conta
                         </Button>
                     ) : (
                         <Box style={{ display: 'flex', alignItems: 'center' }}>
@@ -180,12 +225,22 @@ const CategoryCrud = () => {
                                 value={descriptionField}
                                 onChange={(event) => setDescriptionField(event.target.value)}
                             />
+                            <CurrencyTextField
+                                sx={{ ml: 2 }}
+                                label='Saldo'
+                                variant='standard'
+                                decimalCharacter=','
+                                digitGroupSeparator='.'
+                                value={balanceField}
+                                onChange={(event, value) => setBalanceField(value)}
+                                currencySymbol='R$'
+                            />
                             <Button
                                 sx={{ mt: 2, ml: 2 }}
                                 variant='outlined'
                                 startIcon={<AddCircle />}
                                 onClick={() => save()}
-                                disabled={!descriptionField}
+                                disabled={!descriptionField || !balanceField}
                             >
                                 Salvar
                             </Button>
@@ -205,4 +260,4 @@ const CategoryCrud = () => {
     );
 }
 
-export default CategoryCrud;
+export default BankAccountCrud;

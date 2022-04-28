@@ -1,14 +1,12 @@
 import http from './http-common';
 
-let prefix = '';
-
 export default class BaseService {
-    constructor(customPrefix) {
-        prefix = customPrefix;
+    constructor(urlPrefix) {
+        this.prefix = urlPrefix;
     }
 
     get(page = 0, description = null) {
-        let path = `${prefix}?page=${page}`;
+        let path = `${this.prefix}?page=${page}`;
         if (description) {
             path += `&description=${description}`
         }
@@ -17,18 +15,18 @@ export default class BaseService {
     }
 
     getById(id) {
-        return http.get(`${prefix}/${id}`);
+        return http.get(`${this.prefix}/${id}`);
     }
 
     create(data) {
-        return http.post(prefix, data);
+        return http.post(this.prefix, data);
     }
 
     update(id, data) {
-        return http.put(`${prefix}/${id}`, data);
+        return http.put(`${this.prefix}/${id}`, data);
     }
 
     delete(id, userId) {
-        return http.delete(`${prefix}/${id}`, { data: { user_id: userId} });
+        return http.delete(`${this.prefix}/${id}`, { data: { user_id: userId } });
     }
 }

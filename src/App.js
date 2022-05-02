@@ -16,7 +16,7 @@ function App() {
                 <Route path='/categories' element={<CategoryCrud />} />
                 <Route path='/bank-accounts' element={<BankAccountCrud />} />
                 <Route path='/credit-cards' element={<CreditCardCrud />} />
-                <Route path='/transactions' element={<TransactionCrud />} />
+                <Route path='/transactions/:type/:id' element={<TransactionCrud />} />
             </Routes>
         </>
     );

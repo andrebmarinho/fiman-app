@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { DataGrid } from '@mui/x-data-grid';
 import CurrencyTextField from '@unicef/material-ui-currency-textfield';
@@ -12,12 +13,16 @@ import {
 import {
     Delete,
     AddCircle,
-    Create
+    Create,
+    CurrencyExchange
 } from '@mui/icons-material';
 
 import Service from '../services/bank-account.service.js';
+import currencyHelper from '../helpers/currency.helper.js';
 
 const BankAccountCrud = () => {
+    const navigate = useNavigate();
+
     const [rowCountState, setRowCountState] = useState(0);
     const [page, setPage] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -33,42 +38,7 @@ const BankAccountCrud = () => {
         retrieveBankAccounts(page);
     }, [page, refreshData]);
 
-    const formatCurrency = (amount) => {
-        let amtStr = amount.toString();
-        let formattedString;
-
-        let amtStrParts = amtStr.split('.');
-
-        const integerPart = amtStrParts[0];
-        let integerPartFormattedReversed = '';
-        for (let c = 0, i = integerPart.length - 1; i >= 0 ; i--, c++) { 
-            if (c < 2) {
-                integerPartFormattedReversed += integerPart[i];
-            } else {
-                integerPartFormattedReversed += i - 1 >= 0 ?
-                    integerPart[i] + '.' : integerPart[i];
-                c = -1;                
-            }
-        }
-
-        let integerPartFormatted = '';
-        for (let i = integerPartFormattedReversed.length - 1; i >= 0 ; i--) { 
-            integerPartFormatted += integerPartFormattedReversed[i];
-        }
-
-        if (amtStrParts.length === 1) {
-            formattedString = `${integerPartFormatted},00`;
-        } else {
-            const decimalDigits = amtStrParts[1].length === 1 ? 
-                '0' + amtStrParts[1] : amtStrParts[1];
-
-            formattedString = `${integerPartFormatted},${decimalDigits}`;
-        } 
-
-        return `R$ ${formattedString}`;
-    }
-
-    const renderCells = (params) => {
+    const renderActionsButtons = (params) => {
         return (
             <Grid
                 container
@@ -76,10 +46,22 @@ const BankAccountCrud = () => {
                 alignItems='center'
             >
                 <Grid item xs={9}>
-                    {formatCurrency(params.row.balance)}
+                    {currencyHelper.formatCurrency(params.row.balance)}
                 </Grid >
 
                 <Grid item xs={3}>
+                    <Tooltip title='Transações' placement='top-start'>
+                        <IconButton
+                            aria-label='Transações'
+                            color='warning'
+                            onClick={() => {
+                                navigate('/transactions/bank-account/' + params.row.id);
+                            }}
+                        >
+                            <CurrencyExchange />
+                        </IconButton>
+                    </Tooltip>
+
                     <Tooltip title='Editar' placement='top-start'>
                         <IconButton
                             aria-label='Editar'
@@ -108,14 +90,12 @@ const BankAccountCrud = () => {
         )
     }
 
-    const retrieveBankAccounts = (page) => {
-        Service.get(page).then(response => {
-            const accs = response.data.bankAccounts;
-            const count = response.data.count;
-
-            if (count) {
-                setRowCountState(count);
-            }
+    const retrieveBankAccounts = async (page) => {
+        try {
+            const response = await Service.get(page);
+            const responseData = response.data;
+            const count = responseData.count;
+            const accs = responseData.result;
 
             accs.forEach(el => {
                 el['id'] = el['_id'];
@@ -123,17 +103,22 @@ const BankAccountCrud = () => {
 
             setBankAccounts(accs);
             setLoading(false);
-        }).catch(err => {
+
+            if (count) {
+                setRowCountState(count);
+            }
+        } catch (err) {
             console.log(err);
-        });
+        }
     }
 
-    const removeBankAccount = (id) => {
-        Service.delete(id).then(() => {
+    const removeBankAccount = async (id) => {
+        try {
+            await Service.delete(id);
             setRefreshData(!refreshData);
-        }).catch(err => {
+        } catch (err) {
             console.log(err);
-        })
+        }
     }
 
     const editBankAccount = (bankAccount) => {
@@ -180,14 +165,14 @@ const BankAccountCrud = () => {
     const columns = [
         {
             field: 'description',
-            headerName: 'Descrição',
+            headerName: 'Conta Bancária',
             flex: 1,
         },
         {
             field: 'balance',
             headerName: 'Saldo',
             flex: 1,
-            renderCell: renderCells
+            renderCell: renderActionsButtons
         }
     ];
 
@@ -212,29 +197,38 @@ const BankAccountCrud = () => {
 
                     {!viewForm ? (
                         <Button
-                            sx={{ mt: 2 }}
+                            sx={{ mt: 4 }}
                             onClick={() => showForm()}
                         >
                             Adicionar Conta
                         </Button>
                     ) : (
-                        <Box style={{ display: 'flex', alignItems: 'center' }}>
-                            <TextField
-                                label='Descrição'
-                                variant='standard'
-                                value={descriptionField}
-                                onChange={(event) => setDescriptionField(event.target.value)}
-                            />
-                            <CurrencyTextField
-                                sx={{ ml: 2 }}
-                                label='Saldo'
-                                variant='standard'
-                                decimalCharacter=','
-                                digitGroupSeparator='.'
-                                value={balanceField}
-                                onChange={(event, value) => setBalanceField(value)}
-                                currencySymbol='R$'
-                            />
+                        <Box 
+                            style={{ display: 'flex' }} 
+                            sx={{ mt: 4 }}>
+                            <Box sx={{ mr: 2 }}>
+                                <TextField
+                                    required
+                                    label='Descrição'
+                                    variant='standard'
+                                    value={descriptionField}
+                                    onChange={(event) => setDescriptionField(event.target.value)}
+                                />
+                            </Box>
+                            <Box>
+                                <CurrencyTextField
+                                    sx={{ mt: 2, ml: 10 }}
+                                    required
+                                    label='Saldo'
+                                    variant='standard'
+                                    decimalCharacter=','
+                                    digitGroupSeparator='.'
+                                    value={balanceField}
+                                    onChange={(event, value) => setBalanceField(value)}
+                                    currencySymbol='R$'
+                                />
+                            </Box>
+
                             <Button
                                 sx={{ mt: 2, ml: 2 }}
                                 variant='outlined'

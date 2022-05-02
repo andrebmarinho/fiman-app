@@ -71,14 +71,12 @@ const CategoryCrud = () => {
         )
     }
 
-    const retrieveCategories = (page) => {
-        Service.get(page).then(response => {
-            const categs = response.data.categories;
-            const count = response.data.count;
-
-            if (count) {
-                setRowCountState(count);
-            }
+    const retrieveCategories = async (page) => {
+        try {
+            const response = await Service.get(page);
+            const responseData = response.data;
+            const count = responseData.count;
+            const categs = responseData.result;
 
             categs.forEach(el => {
                 el['id'] = el['_id'];
@@ -86,17 +84,22 @@ const CategoryCrud = () => {
 
             setCategories(categs);
             setLoading(false);
-        }).catch(err => {
+
+            if (count) {
+                setRowCountState(count);
+            }
+        } catch (err) {
             console.log(err);
-        });
+        }
     }
 
-    const removeCategory = (id) => {
-        Service.delete(id).then(() => {
+    const removeCategory = async (id) => {
+        try {
+            await Service.delete(id);
             setRefreshData(!refreshData);
-        }).catch(err => {
+        } catch (err) {
             console.log(err);
-        })
+        }
     }
 
     const editCategory = (category) => {
@@ -140,7 +143,7 @@ const CategoryCrud = () => {
     const columns = [
         {
             field: 'description',
-            headerName: 'Descrição',
+            headerName: 'Categoria',
             flex: 1,
             renderCell: renderCells
         }
@@ -175,6 +178,7 @@ const CategoryCrud = () => {
                     ) : (
                         <Box style={{ display: 'flex', alignItems: 'center' }}>
                             <TextField
+                                required
                                 label='Descrição'
                                 variant='standard'
                                 value={descriptionField}

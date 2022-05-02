@@ -25,10 +25,6 @@ const pages = [
     {
         name: 'Cartões de Crédito',
         path: 'credit-cards'
-    },
-    {
-        name: 'Transações',
-        path: 'transactions'
     }
 ];
 

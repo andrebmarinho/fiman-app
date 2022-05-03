@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useState, useEffect, forwardRef } from 'react';
 import { DataGrid } from '@mui/x-data-grid';
 import CurrencyTextField from '@unicef/material-ui-currency-textfield';
@@ -12,7 +12,9 @@ import {
     Grid,
     Tooltip,
     Input,
-    InputLabel
+    InputLabel,
+    Select,
+    MenuItem
 } from '@mui/material';
 import {
     Delete,
@@ -23,6 +25,9 @@ import {
 import Service from '../services/transaction.service.js';
 import currencyHelper from '../helpers/currency.helper.js';
 import { IMaskInput } from 'react-imask';
+
+const months = [...Array(12).keys()].map(i => i + 1);
+const years = [...Array(20).keys()].map(i => i + 2020);
 
 const TextDateMask = forwardRef(function TextDateMask(props, ref) {
     const { onChange, ...other } = props;
@@ -41,7 +46,6 @@ const TextDateMask = forwardRef(function TextDateMask(props, ref) {
 });
 
 const TransactionCrud = () => {
-    const navigate = useNavigate();
     const params = useParams();
 
     const [rowCountState, setRowCountState] = useState(0);
@@ -53,13 +57,16 @@ const TransactionCrud = () => {
     const [viewForm, setViewForm] = useState(false);
     const [editId, setEditId] = useState(null);
     const [descriptionField, setDescriptionField] = useState('');
-    const [referenceField, setReferenceField] = useState('05/2022');
+    const [referenceField, setReferenceField] = useState('');
+    const [monthReferenceField, setMonthReferenceField] = useState(1);
+    const [yearReferenceField, setYearReferenceField] = useState(2020);
     const [transactionDateField, setTransactionDateField] = useState('');
     const [transactionValueField, setTransactionValueField] = useState('');
+    const [incomeField, setIncomeField] = useState(false);
 
     useEffect(() => {
         retrieveTransactions(page);
-    }, [page, refreshData]);
+    }, [page, refreshData, referenceField]);
 
     const renderDateCell = (params) => {
         return (
@@ -82,8 +89,10 @@ const TransactionCrud = () => {
                 spacing={0}
                 alignItems='center'
             >
-                <Grid item xs={9}>
-                    {currencyHelper.formatCurrency(params.row.transactionValue)}
+                <Grid item
+                    xs={9}
+                    sx={ params.row.income ? {color: 'green'} : {color: 'red'} }>
+                    {params.row.income ? '+' : '-'} {currencyHelper.formatCurrency(params.row.transactionValue)}
                 </Grid >
 
                 <Grid item xs={3}>
@@ -117,6 +126,17 @@ const TransactionCrud = () => {
 
     const retrieveTransactions = async (page) => {
         try {
+            if (referenceField === '') {
+                const today = new Date();
+                const month = today.getMonth() + 1;
+                const year = today.getFullYear();
+
+                setMonthReferenceField(month);
+                setYearReferenceField(year);
+                setReferenceField(`${month < 10 ? '0' + month : month}/${year}`);
+                return;
+            }
+
             const query = {};
 
             if (params.type === 'bank-account') {
@@ -124,6 +144,10 @@ const TransactionCrud = () => {
             } else {
                 query.creditCardId = params.id;
             }
+
+            query.reference = referenceField;
+
+            console.log(query, params);
 
             const response = await Service.get(page, query);
             const responseData = response.data;
@@ -169,10 +193,9 @@ const TransactionCrud = () => {
 
         const transactionDate = new Date(year, month, day);
 
-        // TODO
         const transaction = {
             description: descriptionField,
-            reference: '05/2022',
+            reference: referenceField,
             transactionDate: transactionDate,
             transactionValue: transactionValueField
         }
@@ -204,7 +227,6 @@ const TransactionCrud = () => {
     const closeForm = () => {
         setEditId(null);
         setDescriptionField('');
-        setReferenceField('');
         setTransactionDateField('');
         setTransactionValueField('');
         setViewForm(false);
@@ -212,13 +234,42 @@ const TransactionCrud = () => {
 
     const showForm = (transaction) => {
         setDescriptionField(transaction?.description || '');
-        setReferenceField(transaction?.reference || '');
-        setTransactionDateField( transaction ?
-            moment(transaction.transactionDate).format('L') : 
+        setTransactionDateField(transaction ?
+            moment(transaction.transactionDate).format('L') :
             ''
         );
         setTransactionValueField(transaction?.transactionValue || '');
         setViewForm(true);
+    }
+
+    const onChangeMonthReferenceField = (event) => {
+        const referenceArr = referenceField.split('/');
+        const month = referenceArr[0];
+        const year = referenceArr[1];
+
+        let value = event.target.value;
+
+        setMonthReferenceField(value);
+
+        value = value < 10 ? '0' + value : value.toString();
+        if (month === value) return;
+
+        setReferenceField(value + '/' + year);
+    }
+
+    const onChangeYearReferenceField = (event) => {
+        const referenceArr = referenceField.split('/');
+        const month = referenceArr[0];
+        const year = referenceArr[1];
+
+        let value = event.target.value;
+
+        setYearReferenceField(value);
+
+        if (year === value.toString()) return;
+
+        setReferenceField(month + '/' + value);
+        
     }
 
     const columns = [
@@ -244,6 +295,44 @@ const TransactionCrud = () => {
     return (
         <div style={{ display: 'flex', height: '100%' }}>
             <div style={{ flexGrow: 1 }}>
+                <Grid sx={{ pt: 5 }}
+                    container
+                    spacing={1}
+                    justifyContent='center'
+                    alignItems='center'>
+                    <Grid item xs={2}>
+                        <InputLabel id="select-month-label">Mês</InputLabel>
+                        <Select
+                            id='select-month'
+                            labelId="select-month-label"
+                            value={monthReferenceField}
+                            onChange={onChangeMonthReferenceField}>
+                            {months.map(month => {
+                                return (
+                                    <MenuItem key={month} value={month}>
+                                        {month < 10 ? '0' + month : month}
+                                    </MenuItem>
+                                );
+                            })}
+                        </Select>
+                    </Grid>
+                    <Grid item xs={2}>
+                        <InputLabel id="select-year-label">Ano</InputLabel>
+                        <Select
+                            id='select-year'
+                            labelId="select-year-label"
+                            value={yearReferenceField}
+                            onChange={onChangeYearReferenceField} >
+                            {years.map(year => {
+                                return (
+                                    <MenuItem key={year} value={year}>
+                                        {year}
+                                    </MenuItem>
+                                );
+                            })}
+                        </Select>
+                    </Grid>
+                </Grid>
                 <Box sx={{ p: 5 }}>
                     <DataGrid
                         autoHeight

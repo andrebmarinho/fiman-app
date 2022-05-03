@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DataGrid } from '@mui/x-data-grid';
 import {
     Box,
@@ -12,7 +13,8 @@ import {
 import {
     Delete,
     AddCircle,
-    Create
+    Create,
+    CurrencyExchange
 } from '@mui/icons-material';
 
 import Service from '../services/credit-card.service.js';
@@ -20,6 +22,8 @@ import BankAccountService from '../services/bank-account.service.js';
 import CurrencyHelper from '../helpers/currency.helper.js';
 
 const CreditCardCrud = () => {
+    const navigate = useNavigate();
+
     const [rowCountState, setRowCountState] = useState(0);
     const [page, setPage] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -44,10 +48,22 @@ const CreditCardCrud = () => {
                 spacing={0}
                 alignItems='center'
             >
-                <Grid item xs={9}>
+                <Grid item xs={6}>
                     {CurrencyHelper.formatCurrency(params.row.balance)}
                 </Grid >
-                <Grid item xs={3}>
+                <Grid item xs={6}>
+                    <Tooltip title='Transações' placement='top-start'>
+                        <IconButton
+                            aria-label='Transações'
+                            color='warning'
+                            onClick={() => {
+                                navigate('/transactions/credit-card/' + params.row.id);
+                            }}
+                        >
+                            <CurrencyExchange />
+                        </IconButton>
+                    </Tooltip>
+
                     <Tooltip title='Editar' placement='top-start'>
                         <IconButton
                             aria-label='Editar'
